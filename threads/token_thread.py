@@ -1,4 +1,4 @@
-def token_thread(self, game, killed_me_ev):
+def token_thread(game, killed_me_ev):
     killed_all_ev = game.threads_killed_ev
 
     while True:
