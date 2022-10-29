@@ -1,18 +1,19 @@
 from queue import Queue
 import threading
-from constants import BOARD_SIZE, TOKENS_COUNT
+from constants import BOARD_SIZE, DIFFICULTIES_CONFIG, TOKENS_COUNT
 from core.ui import Ui
 from core.utils import Utils
 from threads.token_thread import token_thread
 from threads.ui_thread import ui_thread
 
-
+# DEV move to /core
 class Game:
     def __init__(self) -> None:
         self.board = None
         self.eliminated = 0
         self.threads = {}
         self.kill_evs = {}
+        self.difficulty_config = {}
 
         self.tokens_event_queue = Queue()
         self.ui_events_queue = Queue()
@@ -49,7 +50,8 @@ class Game:
     def clear_position(self, x, y):
         self.board[x][y] = 0
 
-    def start_game(self):
+    def start_game(self, difficulty):
+        self.__select_difficulty(difficulty)
         self.__wait_for_threads_to_finish()
         self.__reset_variables()
         self.__initialize_board()
@@ -57,6 +59,9 @@ class Game:
         self.__initialize_token_threads()
 
         self.ui.show_game(self.board)
+
+    def __select_difficulty(self, difficulty):
+        self.difficulty_config = DIFFICULTIES_CONFIG[difficulty]
 
     def refresh_game(self):
         self.ui.refresh_game(self.board)
@@ -92,22 +97,25 @@ class Game:
 
     def __initialize_token_threads(self):
         for index in range(TOKENS_COUNT):
-            key = "token_" + index
+            key = "token_" + str(index)
 
             kill_event = threading.Event()
             self.kill_evs[key] = kill_event
 
-            token_thread = threading.Thread(target=token_thread, args=(self, kill_event))
-            self.threads[key] = token_thread
-            token_thread.start()
+            thread = threading.Thread(target=token_thread, args=(self, kill_event))
+            self.threads[key] = thread
+            thread.start()
 
     def __initialize_ui_thread(self):
         self.threads["ui"] = threading.Thread(target=ui_thread, args=(self,))
         self.threads["ui"].start()
 
     def __wait_for_threads_to_finish(self):
-        print("Waiting for threads to finish...")
-        for thread in self.threads.values():
+        for thread_key in self.threads.keys():
+            if (thread_key == "ui"):
+                continue
+            
+            thread = self.threads[thread_key]
             thread.join()
 
     def __reset_variables(self):

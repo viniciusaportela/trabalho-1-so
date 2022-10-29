@@ -16,8 +16,6 @@ class Ui:
                 key='graph'
             )]
         ]
-
-        self.game.on_game_start()
         self.__close_if_exists()
 
         self.window = sg.Window('Trabalho I - S.O. - Jogo', layout)
@@ -37,10 +35,10 @@ class Ui:
 
     def show_menu(self):
         layout = [
-            [sg.Text('Jogo')],
-            [sg.Button('Jogar Fácil', key="play_easy")],
-            [sg.Button('Jogar Médio', key="play_medium")],
-            [sg.Button('Jogar Difícil', key="play_hard")],
+            [sg.Text('Trabalho I - S.O.')],
+            [sg.Button('Jogar no Fácil', key="play_easy")],
+            [sg.Button('Jogar no Médio', key="play_medium")],
+            [sg.Button('Jogar no Difícil', key="play_hard")],
             [sg.Exit('Sair', key="exit")],
         ]
 
