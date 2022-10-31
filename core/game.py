@@ -1,11 +1,11 @@
-from queue import Queue
+from queue import Empty, Queue
 import threading
+from time import sleep
 from constants import BOARD_SIZE, DIFFICULTIES_CONFIG, TOKENS_COUNT
 from core.ui import Ui
 from core.utils import Utils
 from threads.timer_thread import timer_thread
 from threads.token_thread import token_thread
-from threads.ui_thread import ui_thread
 
 class Game:
     def __init__(self) -> None:
@@ -16,19 +16,17 @@ class Game:
         self.difficulty_config = {}
         self.time = 0
 
-        self.tokens_event_queue = Queue()
-        self.ui_events_queue = Queue()
+        self.update_ui_queue = Queue()
+
         self.threads_killed_ev = threading.Event()
 
         self.ui = Ui()
         self.board_lock = threading.Lock()
 
     def initialize(self):
-        self.__initialize_ui_thread()
-
         self.ui.show_menu()
 
-        self.__wait_for_exit()
+        self.__event_loop()
 
     def thread_safe_change_token_position(self, token_id, from_position, to_position):
         with self.board_lock:
@@ -129,9 +127,9 @@ class Game:
         self.threads["timer"] = threading.Thread(target=timer_thread, args=(self, kill_event), daemon=True)
         self.threads["timer"].start()
 
-    def __initialize_ui_thread(self):
-        self.threads["ui"] = threading.Thread(target=ui_thread, args=(self,), daemon=True)
-        self.threads["ui"].start()
+    # def __initialize_ui_thread(self):
+    #     self.threads["ui"] = threading.Thread(target=ui_thread, args=(self,), daemon=True)
+    #     self.threads["ui"].start()
 
     def __wait_for_threads_to_finish(self):
         for thread_key in self.threads.keys():
@@ -146,17 +144,59 @@ class Game:
         self.eliminated = 0
         self.threads = {}
         self.kill_evs = {}
-        self.tokens_event_queue = Queue()
-        self.ui_events_queue = Queue()
+        self.update_ui_queue = Queue()
         self.threads_killed_ev.clear()
     
     def __set_timer(self):
         self.time = self.difficulty_config.get("limit_time")
-
-    def __wait_for_exit(self):
-        while (True):
-            if (self.ui.closed):
-                break
     
     def __kill_token_thread(self, token_id):
         self.kill_evs["token_" + str(token_id)].set()
+    
+    def timer_thread(self, killed_me_ev):
+        while True:
+            if (killed_me_ev.isSet()):
+                break
+
+            sleep(1)
+            self.time -= 1
+            self.refresh_game()
+
+    def __event_loop(self):
+        while True:
+            if (self.ui.closed):
+                break
+
+            if (self.ui.window):
+                try:
+                    action = self.update_ui_queue.get(block=False)
+
+                    if (action):
+                        getattr(self, action["command"])(*action["args"])
+                except Empty:
+                    pass
+
+                event, values = self.ui.window.read(timeout=0)
+
+                if event in (None, 'exit'):
+                    self.ui.closed = True
+                    break
+                
+                if (event == 'graph'):
+                    x, y = values['graph']
+                    self.thread_safe_click_position(x, y)
+
+                if (event == 'play_easy'):
+                    # DEV use Enums
+                    self.start_game('easy')
+                
+                if (event == 'play_medium'):
+                    self.start_game('medium')
+
+                if (event == 'play_hard'):
+                    self.start_game('hard')
+
+                # when click a token button
+                if (type(event) is tuple):
+                    x, y = event
+                    self.thread_safe_click_position(x, y)

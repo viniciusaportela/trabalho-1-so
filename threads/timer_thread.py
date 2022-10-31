@@ -8,4 +8,4 @@ def timer_thread(game, killed_me_ev):
 
         sleep(1)
         game.time -= 1
-        game.refresh_game()
+        game.update_ui_queue.put({ "command": "refresh_game", "args": []})
