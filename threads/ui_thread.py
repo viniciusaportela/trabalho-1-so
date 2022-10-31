@@ -1,8 +1,5 @@
 def ui_thread(game):
     while True:
-        if (game.threads_killed_ev.isSet()):
-            break
-
         if (game.ui.window):
             event, values = game.ui.window.read()
 
@@ -23,3 +20,8 @@ def ui_thread(game):
 
             if (event == 'play_hard'):
                 game.start_game('hard')
+
+            # when click a token button
+            if (type(event) is tuple):
+                x, y = event
+                game.thread_safe_click_position(x, y)

@@ -1,5 +1,6 @@
-from curses import window
 import PySimpleGUI as sg
+from constants import TOKENS_COUNT
+from core.utils import Position
 
 
 class Ui:
@@ -7,12 +8,22 @@ class Ui:
         self.window = None
         self.closed = False
 
-    def show_game(self, board):
-        layout = [[]]
+    def show_game(self, board, time, eliminated):
+        layout = [
+            [
+                sg.Text(self.__get_time_text(time), key="time_text"),
+                sg.Text(self.__get_tokens_text(eliminated), key="tokens_text")
+            ]
+        ]
+
         for row in range(10):
             row_layout = []
             for col in range(10):
-                row_layout.append(sg.Button('', key = (row, col), size=(2,2)))
+                has_token = self.__has_token(board, Position(row, col))
+                # color = ('white', 'red') if has_token else ('white', 'grey2')
+                button_text = 'X' if has_token else ' '
+
+                row_layout.append(sg.Button(button_text, key = (row, col), size=(2,2), disabled=not has_token))
             layout.append(row_layout)
         layout += [[sg.Button('SAIR', font=70)]]
         
@@ -20,8 +31,9 @@ class Ui:
 
         self.window = sg.Window('Trabalho I - S.O.', layout)
 
-    def refresh_game(self, board):
-        pass
+    def refresh_game(self, board, time, eliminated):
+        self.window["time_text"].update(self.__get_time_text(time))
+        self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
     
     def show_victory(self):
         layout = [
@@ -58,3 +70,11 @@ class Ui:
         if (self.window):
             self.window.close()
 
+    def __has_token(self, board, position):
+        return bool(board[position.x][position.y])
+
+    def __get_time_text(self, time: int):
+        return "Tempo: {time}".format(time=time)
+    
+    def __get_tokens_text(self, eliminated: int):
+        return "Fichas: {tokens}".format(tokens=TOKENS_COUNT - eliminated)
