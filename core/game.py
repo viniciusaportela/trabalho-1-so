@@ -111,25 +111,26 @@ class Game:
                 fulfilled_positions_count += 1
 
     def __initialize_game_threads(self):
-        for index in range(TOKENS_COUNT):
-            key = "token_" + str(index)
+        # DEV
+        # for index in range(TOKENS_COUNT):
+        #     key = "token_" + str(index)
 
-            kill_event = threading.Event()
-            self.kill_evs[key] = kill_event
+        #     kill_event = threading.Event()
+        #     self.kill_evs[key] = kill_event
 
-            thread = threading.Thread(target=token_thread, args=(self, kill_event), daemon=True)
-            self.threads[key] = thread
-            thread.start()
+        #     thread = threading.Thread(target=token_thread, args=(self, kill_event), daemon=True)
+        #     self.threads[key] = thread
+        #     thread.start()
         
         kill_event = threading.Event()
         self.kill_evs["timer"] = kill_event
 
-        self.threads["timer"] = threading.Thread(target=timer_thread, args=(self, kill_event), daemon=True)
+        self.threads["timer"] = threading.Thread(target=timer_thread, args=(kill_event, self.update_ui_queue), daemon=True)
         self.threads["timer"].start()
 
-    # def __initialize_ui_thread(self):
-    #     self.threads["ui"] = threading.Thread(target=ui_thread, args=(self,), daemon=True)
-    #     self.threads["ui"].start()
+    def timer_update(self):
+        self.time -= 1
+        self.refresh_game()
 
     def __wait_for_threads_to_finish(self):
         for thread_key in self.threads.keys():

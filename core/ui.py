@@ -1,10 +1,12 @@
 import PySimpleGUI as sg
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QWidgetItem
 from constants import TOKENS_COUNT
 from core.utils import Position
 
 
 class Ui:
     def __init__(self) -> None:
+        self.qt_app = QApplication([])
         self.window = None
         self.closed = False
 
@@ -20,7 +22,6 @@ class Ui:
             row_layout = []
             for col in range(10):
                 has_token = self.__has_token(board, Position(row, col))
-                # color = ('white', 'red') if has_token else ('white', 'grey2')
                 button_text = 'X' if has_token else ' '
 
                 row_layout.append(sg.Button(button_text, key = (row, col), size=(2,2), disabled=not has_token))
@@ -31,10 +32,15 @@ class Ui:
 
         self.window = sg.Window('Trabalho I - S.O.', layout)
 
-    def refresh_game(self, board, time, eliminated):
-        self.window["time_text"].update(self.__get_time_text(time))
-        self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
+    # def refresh_game(self, board, time, eliminated):
+    #     self.window["time_text"].update(self.__get_time_text(time))
+    #     self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
     
+    def refresh_game(self, board, time, eliminated):
+        # self.window.layout().findChild(QLabel, "timer").setText("Time: " + time)
+        timer = self.__find_element("timer")
+        timer.setText("Timer: " + str(time))
+
     def show_victory(self):
         layout = [
             [sg.Text("PARABÉNS, VOCÊ GANHOU!", font=("Helvica",35))],
@@ -56,15 +62,19 @@ class Ui:
         self.window = sg.Window('Derrota!', layout, element_justification='c')
 
     def show_menu(self):
-        layout = [
-            [sg.Text("ESCOLHA UMA OPÇÃO ", font=("Helvica",35))],
-            [sg.Text("Níveis de Dificuldade", font=("Helvica",20))],
-            [sg.Button("FÁCIL", key="play_easy"), sg.Button("MÉDIO", key="play_medium"), sg.Button("DIFÍCIL", key="play_hard")],
-        ]
-
         self.__close_if_exists()
+        
+        self.window = QWidget()
+        
+        layout = QVBoxLayout()
 
-        self.window = sg.Window('Trabalho I - S.O.', layout, element_justification='c')
+        timer_label = QLabel("Timer: 40", objectName="timer")
+        # timer_label.setObjectName("timer")
+        layout.addWidget(timer_label)
+
+        self.window.setLayout(layout)
+
+        self.window.show()
 
     def __close_if_exists(self):
         if (self.window):
@@ -78,3 +88,9 @@ class Ui:
     
     def __get_tokens_text(self, eliminated: int):
         return "Fichas: {tokens}".format(tokens=TOKENS_COUNT - eliminated)
+
+    def __find_element(self, name):
+        for index in range(self.window.layout().count()):
+            element = self.window.layout().itemAt(index).widget()
+            if element.objectName() == name:
+                return element
