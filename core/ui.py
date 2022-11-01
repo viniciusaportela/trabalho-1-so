@@ -27,25 +27,26 @@ class Ui:
 
                 row_layout.append(sg.Button(button_text, key=(row, col), size=(2,2), button_color=color, disabled=disabled))
             layout.append(row_layout)
-        layout += [[sg.Button('SAIR', font=70)]]
+        layout += [[sg.Button('SAIR', font=70, key="exit_game")]]
         
         self.__close_if_exists()
 
         self.window = sg.Window('Trabalho I - S.O.', layout)
 
-    def refresh_game(self, board, time, eliminated):
-        self.window["time_text"].update(self.__get_time_text(time))
-        self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
-        
-        for row in range(len(board)):
-            for col in range(len(board)):
-                has_token = self.__has_token(board, Position(row, col))
+    def refresh_game(self, board, time, eliminated, finished_game):
+        if not finished_game:
+            self.window["time_text"].update(self.__get_time_text(time))
+            self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
+            
+            for row in range(len(board)):
+                for col in range(len(board)):
+                    has_token = self.__has_token(board, Position(row, col))
 
-                color = self.__get_color(has_token)
-                button_text = self.__get_button_text(has_token)
-                disabled = self.__get_is_button_disabled(has_token)
+                    color = self.__get_color(has_token)
+                    button_text = self.__get_button_text(has_token)
+                    disabled = self.__get_is_button_disabled(has_token)
 
-                self.window[(row, col)].update(button_text, button_color=color, disabled=disabled)
+                    self.window[(row, col)].update(button_text, button_color=color, disabled=disabled)
 
     def show_victory(self):
         layout = [
