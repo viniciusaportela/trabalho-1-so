@@ -20,10 +20,12 @@ class Ui:
             row_layout = []
             for col in range(10):
                 has_token = self.__has_token(board, Position(row, col))
-                # color = ('white', 'red') if has_token else ('white', 'grey2')
-                button_text = 'X' if has_token else ' '
 
-                row_layout.append(sg.Button(button_text, key = (row, col), size=(2,2), disabled=not has_token))
+                color = self.__get_color(has_token)
+                button_text = self.__get_button_text(has_token)
+                disabled = self.__get_is_button_disabled(has_token)
+
+                row_layout.append(sg.Button(button_text, key=(row, col), size=(2,2), button_color=color, disabled=disabled))
             layout.append(row_layout)
         layout += [[sg.Button('SAIR', font=70)]]
         
@@ -34,7 +36,17 @@ class Ui:
     def refresh_game(self, board, time, eliminated):
         self.window["time_text"].update(self.__get_time_text(time))
         self.window["tokens_text"].update(self.__get_tokens_text(eliminated))
-    
+        
+        for row in range(len(board)):
+            for col in range(len(board)):
+                has_token = self.__has_token(board, Position(row, col))
+
+                color = self.__get_color(has_token)
+                button_text = self.__get_button_text(has_token)
+                disabled = self.__get_is_button_disabled(has_token)
+
+                self.window[(row, col)].update(button_text, button_color=color, disabled=disabled)
+
     def show_victory(self):
         layout = [
             [sg.Text("PARABÉNS, VOCÊ GANHOU!", font=("Helvica",35))],
@@ -65,6 +77,15 @@ class Ui:
         self.__close_if_exists()
 
         self.window = sg.Window('Trabalho I - S.O.', layout, element_justification='c')
+
+    def __get_color(self, has_token):
+        return ('white', 'red') if has_token else ('white', 'grey2')
+
+    def __get_button_text(self, has_token):
+        return 'X' if has_token else ' '
+
+    def __get_is_button_disabled(self, has_token):
+        return not has_token
 
     def __close_if_exists(self):
         if (self.window):

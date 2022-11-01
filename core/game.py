@@ -1,24 +1,25 @@
+from pickle import TRUE
 from queue import Empty, Queue
 import threading
-from time import sleep
 from constants import BOARD_SIZE, DIFFICULTIES_CONFIG, TOKENS_COUNT
 from core.ui import Ui
-from core.utils import Utils
+from core.utils import Position, Utils
 from threads.timer_thread import timer_thread
 from threads.token_thread import token_thread
 
 class Game:
     def __init__(self) -> None:
         self.board = None
+        # DEV add a new variable to store position of tokens, to find more easily
         self.eliminated = 0
         self.threads = {}
         self.kill_evs = {}
         self.difficulty_config = {}
         self.time = 0
 
-        self.update_ui_queue = Queue()
+        self.messages_queue = Queue()
 
-        self.threads_killed_ev = threading.Event()
+        self.killed_all_threads_ev = threading.Event()
 
         self.ui = Ui()
         self.board_lock = threading.Lock()
@@ -28,10 +29,15 @@ class Game:
 
         self.__event_loop()
 
-    def thread_safe_change_token_position(self, token_id, from_position, to_position):
+    def thread_safe_change_token_position(self, token_id):
         with self.board_lock:
-            self.clear_position(from_position.x, from_position.y)
-            self.board[to_position.x][to_position] = token_id
+            print("change token lock")
+            from_position = self.__get_token_position(token_id)
+
+            if (from_position):
+                new_position = self.__find_random_free_position()
+                self.clear_position(from_position.x, from_position.y)
+                self.board[new_position.x][new_position.y] = token_id
 
     def thread_safe_click_position(self, x, y):
         with self.board_lock:
@@ -40,6 +46,7 @@ class Game:
                 self.clear_position(x, y)
                 self.__kill_token_thread(position_value)
                 self.eliminated += 1
+                print('finished click position lock')
 
         if (self.eliminated == TOKENS_COUNT):
             self.win()
@@ -83,14 +90,20 @@ class Game:
         )
 
     def win(self):
-        self.threads_killed_ev.set()
+        self.killed_all_threads_ev.set()
         
         self.ui.show_victory()
 
     def defeat(self):
-        self.threads_killed_ev.set()
+        self.killed_all_threads_ev.set()
 
         self.ui.show_defeat()
+
+    def __get_token_position(self, token_id):
+        for x in range(BOARD_SIZE):
+            for y in range(BOARD_SIZE):
+                if (self.board[x][y] == token_id):
+                    return Position(x, y)
 
     def __initialize_board(self):
         self.board = []
@@ -101,14 +114,19 @@ class Game:
                 self.board[row].append(0)
 
     def __initialize_tokens(self):
-        fulfilled_positions_count = 0
-        while(fulfilled_positions_count < TOKENS_COUNT):
+        token_id = 1
+        while(token_id < TOKENS_COUNT + 1):
+            position = self.__find_random_free_position()
+            self.board[position.x][position.y] = token_id
+            token_id += 1
+
+    def __find_random_free_position(self):
+        while (True):
             position = Utils.get_random_position()
             has_in_position = self.has_in_position(position.x, position.y)
 
             if (not has_in_position):
-                self.board[position.x][position.y] = fulfilled_positions_count
-                fulfilled_positions_count += 1
+                return position
 
     def __initialize_game_threads(self):
         for index in range(TOKENS_COUNT):
@@ -117,7 +135,11 @@ class Game:
             kill_event = threading.Event()
             self.kill_evs[key] = kill_event
 
-            thread = threading.Thread(target=token_thread, args=(self, kill_event), daemon=True)
+            thread = threading.Thread(target=token_thread, args=(
+                self,
+                kill_event,
+                index + 1
+            ), daemon=True)
             self.threads[key] = thread
             thread.start()
         
@@ -126,10 +148,6 @@ class Game:
 
         self.threads["timer"] = threading.Thread(target=timer_thread, args=(self, kill_event), daemon=True)
         self.threads["timer"].start()
-
-    # def __initialize_ui_thread(self):
-    #     self.threads["ui"] = threading.Thread(target=ui_thread, args=(self,), daemon=True)
-    #     self.threads["ui"].start()
 
     def __wait_for_threads_to_finish(self):
         for thread_key in self.threads.keys():
@@ -144,23 +162,14 @@ class Game:
         self.eliminated = 0
         self.threads = {}
         self.kill_evs = {}
-        self.update_ui_queue = Queue()
-        self.threads_killed_ev.clear()
+        self.messages_queue = Queue()
+        self.killed_all_threads_ev.clear()
     
     def __set_timer(self):
         self.time = self.difficulty_config.get("limit_time")
     
     def __kill_token_thread(self, token_id):
         self.kill_evs["token_" + str(token_id)].set()
-    
-    def timer_thread(self, killed_me_ev):
-        while True:
-            if (killed_me_ev.isSet()):
-                break
-
-            sleep(1)
-            self.time -= 1
-            self.refresh_game()
 
     def __event_loop(self):
         while True:
@@ -169,22 +178,18 @@ class Game:
 
             if (self.ui.window):
                 try:
-                    action = self.update_ui_queue.get(block=False)
+                    action = self.messages_queue.get(block=False)
 
                     if (action):
                         getattr(self, action["command"])(*action["args"])
                 except Empty:
                     pass
 
-                event, values = self.ui.window.read(timeout=0)
+                event, _ = self.ui.window.read(timeout=0)
 
                 if event in (None, 'exit'):
                     self.ui.closed = True
                     break
-                
-                if (event == 'graph'):
-                    x, y = values['graph']
-                    self.thread_safe_click_position(x, y)
 
                 if (event == 'play_easy'):
                     # DEV use Enums
