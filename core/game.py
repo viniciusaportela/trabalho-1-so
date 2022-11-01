@@ -1,4 +1,3 @@
-from pickle import TRUE
 from queue import Empty, Queue
 import threading
 from constants import BOARD_SIZE, DIFFICULTIES_CONFIG, TOKENS_COUNT
@@ -130,7 +129,7 @@ class Game:
 
     def __initialize_game_threads(self):
         for index in range(TOKENS_COUNT):
-            key = "token_" + str(index)
+            key = "token_" + str(index + 1)
 
             kill_event = threading.Event()
             self.kill_evs[key] = kill_event
